@@ -85,3 +85,44 @@ def dat_ave(df_o, freq = 'MS', how = 'mean', round_n = 6, **kawrgs):
         return(round(res_df.mean(), round_n))
     else:
         return(round(res_df.sum(), round_n))
+    
+def int_to_freq(obj):
+    num = sorted([0.5,1.5, 4.5, 12.5, 56, 200, 370] + [obj]).index(obj)
+    if num in list({1:"YS",2:"QS", 3:"MS", 4:"WS", 6:"DS"}):
+        return({1:"YS",2:"QS", 3:"MS", 4:"WS", 6:"DS"}[num])
+    return(np.nan)
+
+def dat_freq(df_o):
+    df = set_date(df_o)
+    temp = list(set(df.index.year))
+    df = pd.DataFrame([[x for x in temp], [df[df.index.year==x].shape[0] for x in temp]], index = ['year', 'count']).T
+    df['freq'] = df['count'].map(lambda x: int_to_freq(x))
+    return(df.dropna().iloc[-1]['freq'])
+
+def ts_to_sines(df_o):
+    df = df_o.copy().dropna()
+    n = df.shape[0]
+    fhat = np.fft.fft(df.T.values[0], n)
+    PSD = fhat * np.conj(fhat) / n
+
+    val = pd.DataFrame(PSD).reset_index()
+    val['real'] = val[0].map(lambda x: x.real)
+    val = val.head(int(val.shape[0]/2)).sort_values(by = "real", ascending = False)
+    
+    idx_dict = dict(zip(val['index'], [np.zeros(len(PSD)) for x in range(val.shape[0])]))
+    for idx in list(idx_dict):
+        idx_dict[idx][idx] = 1
+    idx_dict = {k: pd.DataFrame([x.real for x in np.fft.ifft(fhat * v)]) 
+                for k,v in idx_dict.items()}
+    return(idx_dict)
+
+def fft_proj(df_o, cols = "data", shift_n = 52, add_n = 52 * 3, proj_only = False):
+    df, col = df_o.copy(), df_cols(df_o, cols = cols)[0]
+    df, freq = df[[col]].dropna(), dat_freq(df[[col]].dropna())
+    if freq == 'DS':
+        df = dat_ave(df, freq = "WS")
+    if df.mean()[col] > 1:
+        org_df = df.copy()
+        df = df.pct_change(shift_n).dropna()
+    idx_dict = ts_to_sines(df)
+    return(idx_dict)
