@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import datetime, sys
 
-print('version 0.1, last updated: 2022/05/07')
+print('version 0.11, last updated: 2022/05/09')
 
 def df_cols(df, cols = "data", no_cols = ['date']):
     assert type(df) in [dict, pd.core.frame.DataFrame] and len(list(df))>0, "input type과 길이를 확인하세요"
